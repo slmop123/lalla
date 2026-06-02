@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../types";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   Send, 
   Sparkles, 
@@ -230,36 +231,73 @@ export default function ChatSection() {
     setIsLoading(true);
 
     try {
-      const formattedHistory = messages
-        .filter(m => m.id !== "welcome-msg" && !m.isError)
-        .slice(-6)
-        .map(m => ({
-          role: m.role,
-          content: m.content
-        }));
+      const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+      if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+        throw new Error(
+          "لم يتم العثور على مفتاح الـ API لـ Gemini. يرجى ضبط المتغير VITE_GEMINI_API_KEY في قسم الإعدادات (Settings > Secrets) برمز المنصة ومن ثم المحاولة مجدداً."
+        );
+      }
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: finalQuery,
-          history: formattedHistory
-        })
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const systemInstruction = `أنت "شاهين 01"، أستاذ مغربي خبير متميز ومتخصص في الامتحانات الجهوية للسنة الثالثة إعدادي بالثانوية الإعدادية للا أسماء المتواجدة في عين السبع، الدار البيضاء.
+نطاق عملك ومهمتك الصارمة: 
+1. يجب عليك الإجابة فقط وحصرياً على مواضيع المواد الرسمية المقررة في المنهج الدراسي المغربي للسنة الثالثة إعدادي (مثل: اللغة العربية، التربية الإسلامية، الرياضيات، اللغة الفرنسية، علوم الحياة والأرض، العلوم الفيزيائية والكيميائية، الاجتماعيات، التكنولوجيا الصناعية).
+2. إذا طلب التلميذ خدمات خارج هذا النطاق كالألعاب، لغات البرمجة، الهندسة العكسية، الاختراق، مواضيع غير مدرسية، أو كلام لا يليق بالدراسة والتحضير، فيجب عليك الرفض بلباقة شديدة وحزم تام مغرداً بعبارتك الشهيرة تماماً كما هي:
+"أنا شاهين 01، راداري مخصص لدعمك في التحضير للامتحان الجهوي فقط! 🚀"
+3. أسلوبك التربوي والتمثيلي (إجابة مشوقة ومبسطة):
+- لا تقدم أبداً شروحات جافة أو أكاديمية مملة. ابدأ دائما بترحيب لطيف بالمستوى الإعدادي أو كنية تلميذ إعدادية للا أسماء.
+- قدم دائماً تعريفاً واضحاً، سهلاً، وعلمياً للمفهوم المطلوب بلغة عربية فصحى ميسرة وصحيحة.
+- اربط الفكرة فوراً بقصة مشوقة جداً أو بمثال واقعي مغربي ملموس من البيئة اليومية للتلميذ (مثال: ربط درس السرعة والحركة بـ "ترامواي الدار البيضاء" أو حافلات الدار البيضاء، أو ربط درس الكيمياء وتفاعلات الأكسدة والاحتراق وصنع الصدأ بـ "طهي الطاجين المغربي" فوق الفحم أو تحضير الشاي المغربي المنعنع، أو ربط دروس التربية البدنية أو مسارات الدار البيضاء وعين السبع).
+- اختم دائماً شرحك بسؤال تطبيقي سريع ومحفز، تطلب فيه من التلميذ الإجابة عليه في الرد التالي للتأكد من فهمه الكامل للمفهوم.
+4. التنسيق: اكتب ردودك بتنسيق Markdown ممتاز ومنظم غني بالعناوين العريضة (headers)، الخطوط السميكة، والتعداد الواضح لتسهيل المراجعة وتسهيل عملية تحويل الرد إلى ملف PDF مرتب وجاهز للطباعة والمذاكرة لاحقاً.`;
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-3.5-flash",
+        systemInstruction,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const assistantMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
-          role: "assistant",
-          content: data.response,
-          timestamp: new Date().toLocaleTimeString("ar-MA", { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, assistantMsg]);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "تعذر الحصول على رد من الخادم التربوي.");
+      const contentsPayload: any[] = [];
+      const historyContext = messages.filter(m => m.id !== "welcome-msg" && !m.isError).slice(-6);
+      
+      historyContext.forEach(m => {
+        contentsPayload.push({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }]
+        });
+      });
+
+      contentsPayload.push({
+        role: "user",
+        parts: [{ text: finalQuery }]
+      });
+
+      const response = await model.generateContent({
+        contents: contentsPayload,
+        generationConfig: {
+          temperature: 0.7,
+        }
+      });
+
+      let replyText = "";
+      if (response && response.response) {
+        if (typeof response.response.text === "function") {
+          replyText = response.response.text();
+        } else {
+          replyText = (response.response as any).text || "";
+        }
       }
+
+      if (!replyText) {
+        throw new Error("لم تتلقى المنصة رداً صالحاً من نموذج الذكاء الاصطناعي.");
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: replyText,
+        timestamp: new Date().toLocaleTimeString("ar-MA", { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, assistantMsg]);
     } catch (err: any) {
       console.error("Chat Error:", err);
       const errMsg = err.message || "حدث خطأ غير متوقع أثناء إرسال استفسارك.";

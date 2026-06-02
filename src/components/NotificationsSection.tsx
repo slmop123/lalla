@@ -13,42 +13,29 @@ import {
   Inbox
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getNotificationsLocal } from "../lib/schoolData";
 
 export default function NotificationsSection() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const fetchNotifications = async () => {
+  const loadNotifications = () => {
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const response = await fetch("/api/notifications");
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-        localStorage.setItem("school_notifications", JSON.stringify(data));
-      } else {
-        setErrorMsg("حدث تعذر أثناء تحميل الإشعارات من الخادم التربوي.");
-      }
+      // Server reversed notifications list to show newest on top
+      const localNotifs = getNotificationsLocal();
+      setNotifications(localNotifs.slice().reverse());
     } catch (err) {
-      console.error("Error fetching notifications:", err);
-      setErrorMsg("عطل في الاتصال بالشبكة أو الخادم.");
+      console.error("Error loading notifications:", err);
+      setErrorMsg("عطل في سحب البيانات المحلية.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadNotifications = () => {
-      const saved = localStorage.getItem("school_notifications");
-      if (saved) {
-        setNotifications(JSON.parse(saved));
-        setIsLoading(false);
-      } else {
-        fetchNotifications();
-      }
-    };
     loadNotifications();
 
     window.addEventListener("school-data-updated", loadNotifications);
@@ -115,7 +102,7 @@ export default function NotificationsSection() {
 
         <button
           id="refresh-notifications-btn"
-          onClick={fetchNotifications}
+          onClick={loadNotifications}
           disabled={isLoading}
           className="flex items-center gap-1.5 px-3.5 py-2 hover:bg-slate-50 text-slate-600 rounded-xl border border-slate-200 text-xs font-bold transition duration-200 cursor-pointer self-start sm:self-center shrink-0"
         >

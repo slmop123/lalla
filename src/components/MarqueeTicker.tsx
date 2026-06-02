@@ -1,39 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { BellRing, RefreshCw } from "lucide-react";
+import { getTickerLocal } from "../lib/schoolData";
 
 export default function MarqueeTicker() {
   const [tickerMessage, setTickerMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const fetchTicker = async () => {
+  const loadTicker = () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/ticker");
-      if (response.ok) {
-        const data = await response.json();
-        setTickerMessage(data.message);
-        localStorage.setItem("school_ticker", data.message);
-      } else {
-        setTickerMessage("مرحباً بكم في البوابة التربوية للثانوية الإعدادية للا أسماء بمديرية عين السبع.");
-      }
+      const message = getTickerLocal();
+      setTickerMessage(message);
     } catch (err) {
-      console.error("Error fetching ticker:", err);
-      setTickerMessage("مرحباً بكم في البوابة التربوية للثانوية الإعدادية للا أسماء بمديرية عين السبع - الدار البيضاء.");
+      console.error("Error loading ticker:", err);
+      setTickerMessage("مرحباً بكم في البوابة التربوية للثانوية الإعدادية للا أسماء بمديرية عين السبع.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadTicker = () => {
-      const saved = localStorage.getItem("school_ticker");
-      if (saved) {
-        setTickerMessage(saved);
-        setIsLoading(false);
-      } else {
-        fetchTicker();
-      }
-    };
     loadTicker();
 
     window.addEventListener("school-data-updated", loadTicker);

@@ -19,6 +19,16 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { NotificationItem, TeacherItem } from "../types";
+import {
+  getNotificationsLocal,
+  getTeachersLocal,
+  addNotificationLocal,
+  deleteNotificationLocal,
+  addTeacherLocal,
+  deleteTeacherLocal,
+  setTickerLocal,
+  addNewsLocal
+} from "../lib/schoolData";
 
 export default function AdminSection() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -68,20 +78,12 @@ export default function AdminSection() {
   const [confirmDeleteNotifId, setConfirmDeleteNotifId] = useState<number | null>(null);
   const [confirmDeleteTeacherId, setConfirmDeleteTeacherId] = useState<number | null>(null);
 
-  const fetchAdminNotifications = async () => {
-    const saved = localStorage.getItem("school_notifications");
-    if (saved) {
-      setAdminNotifs(JSON.parse(saved));
-      return;
-    }
+  const fetchAdminNotifications = () => {
     setLoadingNotifs(true);
     try {
-      const response = await fetch("/api/notifications");
-      if (response.ok) {
-        const data = await response.json();
-        setAdminNotifs(data);
-        localStorage.setItem("school_notifications", JSON.stringify(data));
-      }
+      const data = getNotificationsLocal();
+      // Server returned sorted reversed
+      setAdminNotifs(data.slice().reverse());
     } catch (err) {
       console.error("Error loading notifications in admin panel:", err);
     } finally {
@@ -89,20 +91,11 @@ export default function AdminSection() {
     }
   };
 
-  const fetchAdminTeachers = async () => {
-    const saved = localStorage.getItem("school_teachers");
-    if (saved) {
-      setAdminTeachers(JSON.parse(saved));
-      return;
-    }
+  const fetchAdminTeachers = () => {
     setLoadingTeachers(true);
     try {
-      const response = await fetch("/api/teachers");
-      if (response.ok) {
-        const data = await response.json();
-        setAdminTeachers(data);
-        localStorage.setItem("school_teachers", JSON.stringify(data));
-      }
+      const data = getTeachersLocal();
+      setAdminTeachers(data);
     } catch (err) {
       console.error("Error loading teachers in admin panel:", err);
     } finally {
@@ -117,14 +110,11 @@ export default function AdminSection() {
     }
 
     const loadAdminDataFromStore = () => {
-      const savedNotifs = localStorage.getItem("school_notifications");
-      if (savedNotifs) {
-        setAdminNotifs(JSON.parse(savedNotifs));
-      }
-      const savedTeachers = localStorage.getItem("school_teachers");
-      if (savedTeachers) {
-        setAdminTeachers(JSON.parse(savedTeachers));
-      }
+      const dataNotifs = getNotificationsLocal();
+      setAdminNotifs(dataNotifs.slice().reverse());
+      
+      const dataTeachers = getTeachersLocal();
+      setAdminTeachers(dataTeachers);
     };
 
     window.addEventListener("school-data-updated", loadAdminDataFromStore);
@@ -141,7 +131,7 @@ export default function AdminSection() {
     }
   };
 
-  const handlePostNotification = async (e: React.FormEvent) => {
+  const handlePostNotification = (e: React.FormEvent) => {
     e.preventDefault();
     setNotifSuccess("");
     setNotifError("");
@@ -153,42 +143,22 @@ export default function AdminSection() {
 
     setSubmittingNotif(true);
     try {
-      const response = await fetch("/api/admin/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: notifTitle,
-          message: notifMessage,
-          type: notifType,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.notifications) {
-          localStorage.setItem("school_notifications", JSON.stringify(data.notifications));
-          window.dispatchEvent(new Event("school-data-updated"));
-        }
-        setNotifSuccess("تم نشر وإرسال الإشعار بنجاح! سيظهر فورياً للمستعملين في صندوق الإشعارات.");
-        setNotifTitle("");
-        setNotifMessage("");
-        setNotifType("info");
-        // Reload list
-        fetchAdminNotifications();
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setNotifError(data.error || "خطأ من جهة الخادم أثناء تدوين الإشعار.");
-      }
+      addNotificationLocal(notifTitle, notifMessage, notifType);
+      setNotifSuccess("تم نشر وإرسال الإشعار بنجاح! سيظهر فورياً للمستعملين في صندوق الإشعارات.");
+      setNotifTitle("");
+      setNotifMessage("");
+      setNotifType("info");
+      // Reload list
+      fetchAdminNotifications();
     } catch (err) {
       console.error(err);
-      setNotifError("فشل الاتصال بالخادم.");
+      setNotifError("عطل في حفظ الإشعار محلياً.");
     } finally {
       setSubmittingNotif(false);
     }
   };
 
-  const handleDeleteNotification = async (id: number) => {
+  const handleDeleteNotification = (id: number) => {
     if (confirmDeleteNotifId !== id) {
       setConfirmDeleteNotifId(id);
       return;
@@ -198,41 +168,19 @@ export default function AdminSection() {
     setNotifSuccess("");
     setNotifError("");
     try {
-      const response = await fetch("/api/admin/notifications/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.notifications) {
-          localStorage.setItem("school_notifications", JSON.stringify(data.notifications));
-        } else {
-          const updated = adminNotifs.filter(n => n.id !== id);
-          localStorage.setItem("school_notifications", JSON.stringify(updated));
-        }
-        window.dispatchEvent(new Event("school-data-updated"));
-
-        setAdminNotifs(prev => prev.filter(n => n.id !== id));
-        setNotifSuccess("تم حذف واستبعاد الإشعار بنجاح! اختفى فوراً من لوحة المتعلمين.");
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setNotifError(data.error || "فشل حذف الإشعار من الخادم.");
-      }
+      deleteNotificationLocal(id);
+      setAdminNotifs(prev => prev.filter(n => n.id !== id));
+      setNotifSuccess("تم حذف واستبعاد الإشعار بنجاح! اختفى فوراً من لوحة المتعلمين.");
     } catch (err) {
       console.error(err);
-      setNotifError("حدث خطأ ما أثناء الاتصال بالخادم لحذف الإشعار.");
+      setNotifError("حدث خطأ ما أثناء معالجة عملية الحذف.");
     } finally {
       setDeletingId(null);
       setConfirmDeleteNotifId(null);
     }
   };
 
-  const handlePostTeacher = async (e: React.FormEvent) => {
+  const handlePostTeacher = (e: React.FormEvent) => {
     e.preventDefault();
     setTeacherSuccess("");
     setTeacherError("");
@@ -244,41 +192,21 @@ export default function AdminSection() {
 
     setSubmittingTeacher(true);
     try {
-      const response = await fetch("/api/admin/teachers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: teacherName,
-          subject: teacherSubject,
-          desc: teacherDesc,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.teachers) {
-          localStorage.setItem("school_teachers", JSON.stringify(data.teachers));
-          window.dispatchEvent(new Event("school-data-updated"));
-        }
-        setTeacherSuccess("تم إدراج الأستاذ بكفاءة وضمه للطاقم التربوي بالصفحة الرئيسية!");
-        setTeacherName("");
-        setTeacherSubject("");
-        setTeacherDesc("");
-        fetchAdminTeachers();
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setTeacherError(data.error || "خطأ داخلي من الخادم أثناء حفظ الأستاذ.");
-      }
+      addTeacherLocal(teacherName, teacherSubject, teacherDesc);
+      setTeacherSuccess("تم إدراج الأستاذ بكفاءة وضمه للطاقم التربوي بالصفحة الرئيسية!");
+      setTeacherName("");
+      setTeacherSubject("");
+      setTeacherDesc("");
+      fetchAdminTeachers();
     } catch (err) {
       console.error(err);
-      setTeacherError("تعذر الاتصال بالخادم الإداري حالياً.");
+      setTeacherError("خطأ في تسجيل بيانات الأستاذ محلياً.");
     } finally {
       setSubmittingTeacher(false);
     }
   };
 
-  const handleDeleteTeacher = async (id: number) => {
+  const handleDeleteTeacher = (id: number) => {
     if (confirmDeleteTeacherId !== id) {
       setConfirmDeleteTeacherId(id);
       return;
@@ -288,41 +216,19 @@ export default function AdminSection() {
     setTeacherSuccess("");
     setTeacherError("");
     try {
-      const response = await fetch("/api/admin/teachers/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.teachers) {
-          localStorage.setItem("school_teachers", JSON.stringify(data.teachers));
-        } else {
-          const updated = adminTeachers.filter(t => t.id !== id);
-          localStorage.setItem("school_teachers", JSON.stringify(updated));
-        }
-        window.dispatchEvent(new Event("school-data-updated"));
-
-        setAdminTeachers(prev => prev.filter(t => t.id !== id));
-        setTeacherSuccess("تم حذف وإزالة الأستاذ المحدد بشكل نهائي من قاعدة البيانات.");
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setTeacherError(data.error || "فشل إرسال طلب الشطب من الخادم.");
-      }
+      deleteTeacherLocal(id);
+      setAdminTeachers(prev => prev.filter(t => t.id !== id));
+      setTeacherSuccess("تم حذف وإزالة الأستاذ المحدد بشكل نهائي من قاعدة البيانات.");
     } catch (err) {
       console.error(err);
-      setTeacherError("حدث عطب أثناء إرسال طلب الحذف.");
+      setTeacherError("حدث عطب أثناء معالجة الحذف.");
     } finally {
       setDeletingTeacherId(null);
       setConfirmDeleteTeacherId(null);
     }
   };
 
-  const handleUpdateTicker = async (e: React.FormEvent) => {
+  const handleUpdateTicker = (e: React.FormEvent) => {
     e.preventDefault();
     setTickerSuccess("");
     setTickerError("");
@@ -334,34 +240,18 @@ export default function AdminSection() {
 
     setSubmittingTicker(true);
     try {
-      const response = await fetch("/api/admin/ticker", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: tickerInput,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        localStorage.setItem("school_ticker", tickerInput);
-        window.dispatchEvent(new Event("school-data-updated"));
-
-        setTickerSuccess("تم تحديث شريط التنبيهات الموائم للثانوية بنجاح! سيظهر التعديل فورياً في أعلى الشاشة.");
-        setTickerInput("");
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setTickerError(data.error || "فشل تحديث التنبيهات من جهة الخادم.");
-      }
+      setTickerLocal(tickerInput);
+      setTickerSuccess("تم تحديث شريط التنبيهات الموائم للثانوية بنجاح! سيظهر التعديل فورياً في أعلى الشاشة.");
+      setTickerInput("");
     } catch (err) {
       console.error(err);
-      setTickerError("حدث حظر أو عطل في الاتصال بالخادم.");
+      setTickerError("خطأ أثناء تدوين الرسالة العاجلة.");
     } finally {
       setSubmittingTicker(false);
     }
   };
 
-  const handlePostNews = async (e: React.FormEvent) => {
+  const handlePostNews = (e: React.FormEvent) => {
     e.preventDefault();
     setNewsSuccess("");
     setNewsError("");
@@ -373,32 +263,13 @@ export default function AdminSection() {
 
     setSubmittingNews(true);
     try {
-      const response = await fetch("/api/admin/news", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newsTitle,
-          content: newsContent,
-          password: "lalla_asmaa_admin"
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.news) {
-          localStorage.setItem("school_news", JSON.stringify(data.news));
-          window.dispatchEvent(new Event("school-data-updated"));
-        }
-        setNewsSuccess("تم نشر وإدراج الخبر المستجد بنجاح في لوحة أخبار الصفحة الرئيسية للمتعلمين والمعلمات!");
-        setNewsTitle("");
-        setNewsContent("");
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setNewsError(data.error || "فشل إرسال المقال من جهة الخادم.");
-      }
+      addNewsLocal(newsTitle, newsContent);
+      setNewsSuccess("تم نشر وإدراج الخبر المستجد بنجاح في لوحة أخبار الصفحة الرئيسية للمتعلمين والمعلمات!");
+      setNewsTitle("");
+      setNewsContent("");
     } catch (err) {
       console.error(err);
-      setNewsError("حدث تعطل في الاتصال بالخادم.");
+      setNewsError("فشل تسجيل المذكرة التربوية محلياً.");
     } finally {
       setSubmittingNews(false);
     }

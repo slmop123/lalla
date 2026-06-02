@@ -11,6 +11,7 @@ import {
   GraduationCap
 } from "lucide-react";
 import { motion } from "motion/react";
+import { getNewsLocal, getTeachersLocal } from "../lib/schoolData";
 
 interface HomeSectionProps {
   onGoToChat: () => void;
@@ -24,61 +25,27 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [isLoadingTeachers, setIsLoadingTeachers] = useState<boolean>(true);
 
-  const fetchNews = async () => {
+  const loadAllHomeData = () => {
     setIsLoadingNews(true);
+    setIsLoadingTeachers(true);
     setErrorNews("");
     try {
-      const response = await fetch("/api/news");
-      if (response.ok) {
-        const data = await response.json();
-        setNews(data);
-        localStorage.setItem("school_news", JSON.stringify(data));
-      } else {
-        setErrorNews("فشل جلب الأخبار من الخادم. يرجى المحاولة لاحقاً.");
-      }
+      // Server reversed the news array so latest is on top
+      const localNews = getNewsLocal();
+      setNews(localNews.slice().reverse());
+      
+      const localTeachers = getTeachersLocal();
+      setTeachers(localTeachers);
     } catch (err) {
-      console.error("Error fetching news:", err);
-      setErrorNews("خطأ في الاتصال بالخادم. تحقق من توفر الشبكة.");
+      console.error("Error loading home page data:", err);
+      setErrorNews("خطأ في تحميل ملفات وجداول البيانات بالمؤسسة.");
     } finally {
       setIsLoadingNews(false);
-    }
-  };
-
-  const fetchTeachers = async () => {
-    setIsLoadingTeachers(true);
-    try {
-      const response = await fetch("/api/teachers");
-      if (response.ok) {
-        const data = await response.json();
-        setTeachers(data);
-        localStorage.setItem("school_teachers", JSON.stringify(data));
-      }
-    } catch (err) {
-      console.error("Error fetching teachers in HomeSection:", err);
-    } finally {
       setIsLoadingTeachers(false);
     }
   };
 
   useEffect(() => {
-    const loadAllHomeData = () => {
-      const savedNews = localStorage.getItem("school_news");
-      if (savedNews) {
-        setNews(JSON.parse(savedNews));
-        setIsLoadingNews(false);
-      } else {
-        fetchNews();
-      }
-
-      const savedTeachers = localStorage.getItem("school_teachers");
-      if (savedTeachers) {
-        setTeachers(JSON.parse(savedTeachers));
-        setIsLoadingTeachers(false);
-      } else {
-        fetchTeachers();
-      }
-    };
-
     loadAllHomeData();
 
     window.addEventListener("school-data-updated", loadAllHomeData);
@@ -280,7 +247,7 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
           
           <button
             id="refresh-news-btn"
-            onClick={fetchNews}
+            onClick={loadAllHomeData}
             disabled={isLoadingNews}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold cursor-pointer transition-colors"
           >
