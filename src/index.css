@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Amiri", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  
+  --color-royal-blue: #0f4c81;
+  --color-royal-hover: #083155;
+  --color-moroccan-gold: #c5a059;
+  --color-soft-beige: #fcf9f4;
+  --color-desert-amber: #e5b162;
+  --color-traditional-clay: #a63f28;
+
+  --animate-marquee: marquee 30s linear infinite;
+
+  @keyframes marquee {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+}
+
+/* Custom CSS Helpers */
+.zellij-pattern {
+  background-color: var(--color-soft-beige);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%23c5a059' stroke-width='0.5' stroke-opacity='0.08'/%3E%3Crect x='15' y='15' width='30' height='30' fill='none' stroke='%230f4c81' stroke-width='0.5' stroke-opacity='0.05' transform='rotate%2845 30 30%29'/%3E%3Ccircle cx='30' cy='30' r='5' fill='none' stroke='%23c5a059' stroke-width='0.5' stroke-opacity='0.15'/%3E%3C/svg%3E");
+}
+
+.zellij-border {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M0 8 L8 0 L16 8 L8 16 Z' fill='%23c5a059' fill-opacity='0.15' stroke='none'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1ebd9;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5a059;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0f4c81;
+}
+
+/* Styles for Chat Messages formatted with markdown */
+.markdown-body {
+  line-height: 1.8;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  font-family: "Cairo", sans-serif;
+  font-weight: 700;
+  color: #0f4c81;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-body p {
+  margin-bottom: 0.75rem;
+}
+.markdown-body ul, .markdown-body ol {
+  margin-right: 1.5rem;
+  margin-bottom: 0.75rem;
+  list-style-type: decimal;
+}
+.markdown-body ul {
+  list-style-type: square;
+}
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+.markdown-body blockquote {
+  border-right: 4px solid #c5a059;
+  padding-right: 1rem;
+  color: #555;
+  background-color: rgba(197, 160, 89, 0.05);
+  margin: 1rem 0;
+  border-radius: 4px;
+}
