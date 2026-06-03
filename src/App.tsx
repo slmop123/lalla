@@ -6,6 +6,7 @@ import HomeSection from "./components/HomeSection";
 import ChatSection from "./components/ChatSection";
 import AdminSection from "./components/AdminSection";
 import NotificationsSection from "./components/NotificationsSection";
+import StaffSection from "./components/StaffSection";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -68,6 +69,18 @@ export default function App() {
               transition={{ duration: 0.25 }}
             >
               <NotificationsSection />
+            </motion.div>
+          )}
+
+          {activeTab === "staff" && (
+            <motion.div
+              key="staff-section"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+            >
+              <StaffSection />
             </motion.div>
           )}
         </AnimatePresence>

@@ -8,10 +8,12 @@ import {
   CheckCircle2, 
   Bookmark, 
   RefreshCw,
-  GraduationCap
+  GraduationCap,
+  Cloud,
+  WifiOff
 } from "lucide-react";
 import { motion } from "motion/react";
-import { getNewsLocal, getTeachersLocal } from "../lib/schoolData";
+import { getNews, getTeachers, isCloudSyncEnabled, seedInitialCloudData } from "../lib/supabaseClient";
 
 interface HomeSectionProps {
   onGoToChat: () => void;
@@ -25,17 +27,19 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [isLoadingTeachers, setIsLoadingTeachers] = useState<boolean>(true);
 
-  const loadAllHomeData = () => {
+  const loadAllHomeData = async () => {
     setIsLoadingNews(true);
     setIsLoadingTeachers(true);
     setErrorNews("");
     try {
-      // Server reversed the news array so latest is on top
-      const localNews = getNewsLocal();
-      setNews(localNews.slice().reverse());
+      // Seed first if applicable (background check)
+      await seedInitialCloudData();
       
-      const localTeachers = getTeachersLocal();
-      setTeachers(localTeachers);
+      const cloudNews = await getNews();
+      setNews(cloudNews);
+      
+      const cloudTeachers = await getTeachers();
+      setTeachers(cloudTeachers);
     } catch (err) {
       console.error("Error loading home page data:", err);
       setErrorNews("خطأ في تحميل ملفات وجداول البيانات بالمؤسسة.");
@@ -58,7 +62,41 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
   ];
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6">
+
+      {/* Cloud Sync Status Notification */}
+      <div id="database-sync-status-indicator" className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 bg-white border border-slate-200/80 rounded-xl shadow-xs transition duration-200 text-xs text-slate-700">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isCloudSyncEnabled() ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Cloud className="h-4 w-4 text-emerald-500" />
+              <span className="font-bold text-emerald-800">بروتوكول المزامنة السحابية (Supabase) نشط!</span>
+              <span className="text-slate-450">مزامنة بيداغوجية مستمرة ومباشرة عبر مختلف أجهزة التلاميذ والأساتذة.</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <WifiOff className="h-4 w-4 text-amber-500" />
+              <span className="font-bold text-amber-700">وضع المحاكاة المحلي (LocalStorage) مفعل</span>
+              <span className="text-slate-450">لحفظ التعديلات بصورة جماعية وبثها سحابياً، أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY في قسم الإعدادات.</span>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={loadAllHomeData}
+          className="px-3 py-1 rounded-lg bg-royal-blue/10 hover:bg-royal-blue/15 text-royal-blue font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+        >
+          <RefreshCw className={`h-3 w-3 ${isLoadingNews ? "animate-spin" : ""}`} />
+          <span>تحديث الاتصال والبيانات</span>
+        </button>
+      </div>
       
       {/* 1. Hero / Welcome banner */}
       <section className="bg-white rounded-2xl border border-amber-200/50 p-6 sm:p-10 shadow-sm relative overflow-hidden" id="welcome-hero-section">

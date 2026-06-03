@@ -28,4 +28,4 @@ export interface TeacherItem {
   desc: string;
 }
 
-export type ActiveTab = 'home' | 'chat' | 'admin' | 'notifications';
+export type ActiveTab = 'home' | 'chat' | 'admin' | 'notifications' | 'staff';

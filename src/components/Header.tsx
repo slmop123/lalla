@@ -1,6 +1,6 @@
 import React from "react";
 import { ActiveTab } from "../types";
-import { BookOpen, MessageSquareText, ShieldAlert, GraduationCap, MapPin, Bell } from "lucide-react";
+import { BookOpen, MessageSquareText, ShieldAlert, GraduationCap, MapPin, Bell, UserCheck } from "lucide-react";
 import { motion } from "motion/react";
 
 interface HeaderProps {
@@ -92,9 +92,9 @@ export default function Header({ activeTab, setActiveTab }: HeaderProps) {
 
             {/* Notifications Tab */}
             <button
-              id="notifications-tab-btn"
-              onClick={() => setActiveTab("notifications")}
-              className={`relative px-4 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition duration-250 cursor-pointer ${
+               id="notifications-tab-btn"
+               onClick={() => setActiveTab("notifications")}
+               className={`relative px-4 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition duration-250 cursor-pointer ${
                 activeTab === "notifications" 
                   ? "text-royal-blue bg-soft-beige font-bold shadow-md" 
                   : "text-slate-100 hover:bg-white/10 hover:text-white"
@@ -103,6 +103,26 @@ export default function Header({ activeTab, setActiveTab }: HeaderProps) {
               <Bell className="h-4.5 w-4.5" />
               <span>صندوق الإشعارات</span>
               {activeTab === "notifications" && (
+                <motion.div 
+                  layoutId="active-nav" 
+                  className="absolute bottom-0 left-0 right-0 h-1 bg-moroccan-gold rounded-b-lg"
+                />
+              )}
+            </button>
+
+            {/* Educational Staff Portal Tab */}
+            <button
+              id="staff-tab-btn"
+              onClick={() => setActiveTab("staff")}
+              className={`relative px-4 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition duration-250 cursor-pointer ${
+                activeTab === "staff" 
+                  ? "text-royal-blue bg-soft-beige font-bold shadow-md" 
+                  : "text-slate-100 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <UserCheck className="h-4.5 w-4.5 text-royal-blue sm:text-moroccan-gold" />
+              <span>فضاء الأساتذة</span>
+              {activeTab === "staff" && (
                 <motion.div 
                   layoutId="active-nav" 
                   className="absolute bottom-0 left-0 right-0 h-1 bg-moroccan-gold rounded-b-lg"

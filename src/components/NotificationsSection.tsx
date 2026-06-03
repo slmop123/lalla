@@ -13,23 +13,23 @@ import {
   Inbox
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { getNotificationsLocal } from "../lib/schoolData";
+import { getNotifications } from "../lib/supabaseClient";
 
 export default function NotificationsSection() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     setIsLoading(true);
     setErrorMsg("");
     try {
-      // Server reversed notifications list to show newest on top
-      const localNotifs = getNotificationsLocal();
-      setNotifications(localNotifs.slice().reverse());
+      // Fetch updated notifications from cloud synchronizer
+      const cloudNotifs = await getNotifications();
+      setNotifications(cloudNotifs);
     } catch (err) {
       console.error("Error loading notifications:", err);
-      setErrorMsg("عطل في سحب البيانات المحلية.");
+      setErrorMsg("عطل في سحب البيانات السحابية.");
     } finally {
       setIsLoading(false);
     }

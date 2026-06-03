@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { BellRing, RefreshCw } from "lucide-react";
-import { getTickerLocal } from "../lib/schoolData";
+import { getTicker } from "../lib/supabaseClient";
 
 export default function MarqueeTicker() {
   const [tickerMessage, setTickerMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const loadTicker = () => {
+  const loadTicker = async () => {
     setIsLoading(true);
     try {
-      const message = getTickerLocal();
+      const message = await getTicker();
       setTickerMessage(message);
     } catch (err) {
       console.error("Error loading ticker:", err);
