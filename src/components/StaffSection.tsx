@@ -192,12 +192,6 @@ export default function StaffSection() {
               <ArrowRight className="h-4 w-4 text-moroccan-gold" />
             </button>
           </form>
-
-          <div className="mt-8 border-t border-dashed border-slate-100 pt-5 text-center">
-            <span className="text-[10px] text-amber-600 bg-amber-50 px-2.5 py-1 rounded border border-amber-200/50 font-semibold font-mono inline-block">
-              💡 الرمز الافتراضي المعتمد للتجربة: lalla_asmaa_teacher
-            </span>
-          </div>
         </div>
       ) : (
         /* Workspace */
