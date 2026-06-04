@@ -158,7 +158,7 @@ export default function AdminSection() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "lalla_asmaa_admin") {
+    if (password === "lalla_asmaa_admin1") {
       sessionStorage.setItem("admin_logged_in", "true");
       setIsAuthenticated(true);
       setAuthError("");
@@ -440,12 +440,6 @@ export default function AdminSection() {
             <span>تسجيل الدخول للإدارة</span>
           </button>
         </form>
-
-        <div className="mt-8 border-t border-dashed border-slate-150 pt-4 text-center">
-          <span className="text-[10px] text-amber-600 bg-amber-50 px-2.5 py-1 rounded border border-amber-200/50 font-semibold font-mono inline-block">
-            💡 الرمز الإداري الافتراضي للتجربة: lalla_asmaa_admin
-          </span>
-        </div>
       </div>
     );
   }
