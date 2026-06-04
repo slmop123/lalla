@@ -118,7 +118,7 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
           </h2>
 
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
-            منبر تربوي رائد وبوابة رقمية تفاعلية حديثة، غايتها توفير المواكبة العلمية للمتعلمين وتيسير سبل التحضير للاستحقاقات الإشهادية بفضل طاقم إداري وتربوي كفؤ ودعم بالذكاء الاصطناعي الأكاديمي المتخصص.
+            منبر تربوي رائد وبوابة رقمية تفاعلية حديثة، غايتها توفير المواكبة العلمية للمتعلمين وتيسير سبل التحضير للاستحقاقات الإشهادية بفضل طاقم إداري وتربوي كفء ودعم بالذكاء الاصطناعي الأكاديمي المتخصص.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -179,7 +179,7 @@ export default function HomeSection({ onGoToChat }: HomeSectionProps) {
         <div className="text-center space-y-2">
           <h3 className="text-2xl font-bold text-royal-blue font-serif">لوحة الشرف: الطاقم الإداري والتربوي بالثانوية</h3>
           <p className="text-slate-500 text-xs sm:text-sm max-w-xl mx-auto">
-            أعضاء أسرة إعدادية للا أسماء الساهرين والمشرفين على السير البيداغوجي وتوجيه المتعلمين.
+            أعضاء أسرة إعدادية للا أسماء الساهرون والمشرفون على السير البيداغوجي وتوجيه المتعلمين.
           </p>
           <div className="h-1 w-20 bg-moroccan-gold mx-auto rounded-full mt-2"></div>
         </div>
