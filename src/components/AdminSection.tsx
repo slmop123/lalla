@@ -19,9 +19,10 @@ import {
   BookOpen,
   Cloud,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Search
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { NotificationItem, TeacherItem } from "../types";
 import {
   getNotifications,
@@ -29,6 +30,7 @@ import {
   deleteNotification,
   getTeachers,
   addTeacher,
+  updateTeacher,
   deleteTeacher,
   setTicker,
   addNews,
@@ -72,18 +74,23 @@ export default function AdminSection() {
   const [loadingNotifs, setLoadingNotifs] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Teachers form state
-  const [teacherName, setTeacherName] = useState<string>("");
-  const [teacherSubject, setTeacherSubject] = useState<string>("");
-  const [teacherDesc, setTeacherDesc] = useState<string>("");
+  // Teachers form state & list
+  const [adminTeachers, setAdminTeachers] = useState<TeacherItem[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState<boolean>(false);
+  const [deletingTeacherId, setDeletingTeacherId] = useState<number | null>(null);
   const [teacherSuccess, setTeacherSuccess] = useState<string>("");
   const [teacherError, setTeacherError] = useState<string>("");
   const [submittingTeacher, setSubmittingTeacher] = useState<boolean>(false);
 
-  // Teachers list & delete states
-  const [adminTeachers, setAdminTeachers] = useState<TeacherItem[]>([]);
-  const [loadingTeachers, setLoadingTeachers] = useState<boolean>(false);
-  const [deletingTeacherId, setDeletingTeacherId] = useState<number | null>(null);
+  // Enhanced Teachers search / filter & modals
+  const [adminTeacherSearch, setAdminTeacherSearch] = useState<string>("");
+  const [adminTeacherFilterSubject, setAdminTeacherFilterSubject] = useState<string>("all");
+  const [isAddTeacherOpen, setIsAddTeacherOpen] = useState<boolean>(false);
+  const [editingTeacher, setEditingTeacher] = useState<TeacherItem | null>(null);
+
+  // Modal Form Fields
+  const [formTeacherName, setFormTeacherName] = useState<string>("");
+  const [formTeacherSubject, setFormTeacherSubject] = useState<string>("الرياضيات");
 
   // Subjects Management form & list
   const [adminSubjects, setAdminSubjects] = useState<SchoolSubject[]>([]);
@@ -228,19 +235,19 @@ export default function AdminSection() {
     setTeacherSuccess("");
     setTeacherError("");
 
-    if (!teacherName.trim() || !teacherSubject.trim() || !teacherDesc.trim()) {
-      setTeacherError("يرجى تعبئة اسم الأستاذ، المادة، والنبذة المختصرة لإستكمال الإدراج.");
+    if (!formTeacherName.trim() || !formTeacherSubject.trim()) {
+      setTeacherError("يرجى تعبئة اسم الأستاذ واختيار المادة الدراسية لإستكمال الإدراج.");
       return;
     }
 
     setSubmittingTeacher(true);
     try {
-      const success = await addTeacher(teacherName, teacherSubject, teacherDesc);
+      const success = await addTeacher(formTeacherName, formTeacherSubject);
       if (success) {
-        setTeacherSuccess("تم إدراج الأستاذ بكفاءة وضمه للطاقم التربوي بالصفحة الرئيسية!");
-        setTeacherName("");
-        setTeacherSubject("");
-        setTeacherDesc("");
+        setTeacherSuccess("تم إدراج الأستاذ بكفاءة وضمه للطاقم التربوي!");
+        setFormTeacherName("");
+        setFormTeacherSubject("الرياضيات");
+        setIsAddTeacherOpen(false);
         fetchAdminTeachers();
       } else {
         setTeacherError("فشلت عملية إدراج الأستاذ.");
@@ -248,6 +255,37 @@ export default function AdminSection() {
     } catch (err) {
       console.error(err);
       setTeacherError("خطأ في تسجيل بيانات الأستاذ.");
+    } finally {
+      setSubmittingTeacher(false);
+    }
+  };
+
+  const handleUpdateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeacher) return;
+    setTeacherSuccess("");
+    setTeacherError("");
+
+    if (!formTeacherName.trim() || !formTeacherSubject.trim()) {
+      setTeacherError("يرجى تعبئة اسم الأستاذ واختيار المادة الدراسية.");
+      return;
+    }
+
+    setSubmittingTeacher(true);
+    try {
+      const success = await updateTeacher(editingTeacher.id, formTeacherName, formTeacherSubject);
+      if (success) {
+        setTeacherSuccess("تم تحديث بيانات الأستاذ وتعميمها بنجاح!");
+        setFormTeacherName("");
+        setFormTeacherSubject("الرياضيات");
+        setEditingTeacher(null);
+        fetchAdminTeachers();
+      } else {
+        setTeacherError("فشلت عملية تحديث بيانات الأستاذ.");
+      }
+    } catch (err) {
+      console.error(err);
+      setTeacherError("خطأ في تعديل بيانات الأستاذ.");
     } finally {
       setSubmittingTeacher(false);
     }
@@ -886,157 +924,294 @@ export default function AdminSection() {
       </div>
 
       {/* SECTION 3: Teachers Registry & Management Desk */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-slate-100 mt-6">
-        
-        {/* Card 5: Add a new teacher */}
-        <section className="bg-white rounded-xl border border-amber-200/40 p-5 sm:p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <div className="p-1 rounded bg-blue-50 text-royal-blue">
-              <PlusCircle className="h-5 w-5" />
+      <section className="bg-white rounded-xl border border-amber-200/40 p-5 sm:p-6 shadow-sm space-y-6 mt-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-50 text-royal-blue rounded-lg">
+              <GraduationCap className="h-6 w-6 text-royal-blue" />
             </div>
-            <h5 className="font-bold text-base text-slate-900 font-serif">إضافة أستاذ جديد إلى لوحة الشرف</h5>
+            <div>
+              <h5 className="font-bold text-lg text-slate-900 font-serif">إدارة هيئة التدريس</h5>
+              <p className="text-xs text-slate-500 font-sans">
+                لوحة تحكم تفاعلية لإدارة أساتذة المؤسسة، تصفية المواد، تعديل البيانات أو الحذف النهائي المباشر من قاعدة البيانات.
+              </p>
+            </div>
           </div>
 
-          <p className="text-xs text-slate-500 leading-relaxed">
-            سيظهر هذا الاسم والنبذة وتخصص المادة مباشرة في قسم الأساتذة بالصفحة الرئيسية للمؤسسة.
-          </p>
+          <button
+            onClick={() => {
+              setFormTeacherName("");
+              setFormTeacherSubject("الرياضيات");
+              setTeacherSuccess("");
+              setTeacherError("");
+              setIsAddTeacherOpen(true);
+            }}
+            className="px-4 py-2 bg-royal-blue hover:bg-royal-hover text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
+          >
+            <PlusCircle className="h-4.5 w-4.5 text-moroccan-gold" />
+            <span>إضافة أستاذ جديد</span>
+          </button>
+        </div>
 
-          <form id="post-teacher-form" onSubmit={handlePostTeacher} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">اسم الأستاذ الكامل:</label>
-              <input
-                id="admin-teacher-name-input"
-                type="text"
-                placeholder="مثال: الأستاذة فاطمة الزهراء الشافعي"
-                value={teacherName}
-                onChange={(e) => setTeacherName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-slate-800 placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-royal-blue font-medium"
-              />
-            </div>
+        {/* Search & Filter Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={adminTeacherSearch}
+              onChange={(e) => setAdminTeacherSearch(e.target.value)}
+              placeholder="ابحث عن أستاذ بالاسم..."
+              className="w-full pl-3 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-royal-blue shadow-xs text-right placeholder-slate-400 font-medium"
+            />
+            <Search className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+          </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">المادة المقررة والمشرّفة:</label>
-              <input
-                id="admin-teacher-subject-input"
-                type="text"
-                placeholder="مثال: علوم الحياة والأرض / التربية الإسلامية"
-                value={teacherSubject}
-                onChange={(e) => setTeacherSubject(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-slate-800 placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-royal-blue font-medium"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">نبذة تعريفية وتربوية قصيرة:</label>
-              <textarea
-                id="admin-teacher-desc-textarea"
-                rows={3}
-                placeholder="اكتب تخصص الأستاذ أو نبذة موجزة عن جهوده المرافقة للتلاميذ..."
-                value={teacherDesc}
-                onChange={(e) => setTeacherDesc(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-slate-800 placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-royal-blue leading-relaxed font-medium"
-              ></textarea>
-            </div>
-
-            {teacherSuccess && (
-              <div className="bg-emerald-50 text-emerald-800 border border-emerald-100 p-3.5 rounded-lg text-xs leading-relaxed flex items-start gap-2">
-                <CheckCircle className="h-4.5 w-4.5 shrink-0 text-emerald-600 mt-0.5" />
-                <span>{teacherSuccess}</span>
-              </div>
-            )}
-
-            {teacherError && (
-              <div className="bg-red-50 text-red-700 border border-red-100 p-3 rounded-lg text-xs leading-relaxed flex items-start gap-2">
-                <XCircle className="h-4.5 w-4.5 shrink-0 text-red-500 mt-0.5" />
-                <span>{teacherError}</span>
-              </div>
-            )}
-
-            <button
-              id="teacher-submit-btn"
-              type="submit"
-              disabled={submittingTeacher}
-              className={`px-5 py-2.5 rounded-lg font-bold text-xs sm:text-sm text-white transition duration-200 cursor-pointer ${
-                submittingTeacher ? "bg-slate-300" : "bg-royal-blue hover:bg-royal-hover shadow-xs"
-              }`}
+          <div className="w-full sm:w-64">
+            <select
+              value={adminTeacherFilterSubject}
+              onChange={(e) => setAdminTeacherFilterSubject(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-royal-blue text-right font-bold text-slate-700 cursor-pointer"
             >
-              <span>{submittingTeacher ? "جاري الإضافة والتسجيل..." : "إدارج الأستاذ فوراً ببطاقات التكريم"}</span>
-            </button>
-          </form>
-        </section>
+              <option value="all">تصفية حسب كل المواد</option>
+              {['الرياضيات', 'علوم الحياة والأرض', 'الفيزياء', 'العربية', 'الفرنسية', 'الإنجليزية', 'التربية الإسلامية', 'التكنولوجيا', 'المعلوميات', 'الاجتماعيات', 'الرياضة'].map((sub) => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-        {/* Card 6: Manage active teachers */}
-        <section className="bg-white rounded-xl border border-amber-200/40 p-5 sm:p-6 shadow-sm space-y-4 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded bg-red-50 text-red-650">
-                  <Trash2 className="h-5 w-5" />
-                </div>
-                <h5 className="font-bold text-base text-slate-900 font-serif">شطب وإلغاء الأساتذة من الواجهة</h5>
-              </div>
-              
-              <span className="text-[10px] text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-bold">
-                إجمالي الأطر: {adminTeachers.length}
-              </span>
+        {/* Success / Error Alerts */}
+        {teacherSuccess && (
+          <div className="bg-emerald-50 text-emerald-800 border border-emerald-100 p-3.5 rounded-xl text-xs flex items-center gap-2 font-medium">
+            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+            <span>{teacherSuccess}</span>
+          </div>
+        )}
+        {teacherError && (
+          <div className="bg-red-50 text-red-800 border border-red-100 p-3.5 rounded-xl text-xs flex items-center gap-2 font-medium">
+            <XCircle className="h-4.5 w-4.5 text-red-500 shrink-0" />
+            <span>{teacherError}</span>
+          </div>
+        )}
+
+        {/* Teachers Table */}
+        {loadingTeachers ? (
+          <div className="text-center py-12 animate-pulse flex flex-col items-center justify-center gap-3">
+            <RefreshCw className="h-6 w-6 animate-spin text-moroccan-gold" />
+            <span className="text-xs text-slate-400 font-sans">جاري تحميل بيانات الأطر التدريسية...</span>
+          </div>
+        ) : (
+          <div className="border border-slate-150 rounded-xl overflow-hidden shadow-xs bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full text-right border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-150 text-slate-700 font-bold">
+                    <th className="p-3.5 sm:p-4 text-right">اسم الأستاذ الكامل</th>
+                    <th className="p-3.5 sm:p-4 text-right">التخصص والمادة الدراسية</th>
+                    <th className="p-3.5 sm:p-4 text-center">خيارات التحكم والتحرير</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {adminTeachers
+                    .filter(t => {
+                      const searchMatch = t.name.toLowerCase().includes(adminTeacherSearch.trim().toLowerCase());
+                      const subjectMatch = adminTeacherFilterSubject === "all" || t.subject === adminTeacherFilterSubject;
+                      return searchMatch && subjectMatch;
+                    })
+                    .map((teacher) => (
+                      <tr key={teacher.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-3.5 sm:p-4 font-bold text-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-royal-blue shrink-0"></span>
+                            <span>{teacher.name}</span>
+                          </div>
+                        </td>
+                        <td className="p-3.5 sm:p-4 font-sans text-right">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-royal-blue text-[10px] font-bold rounded-lg border border-blue-100/60 font-serif">
+                            ✦ {teacher.subject}
+                          </span>
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-center">
+                          <div className="flex items-center justify-center gap-2.5">
+                            <button
+                              onClick={() => {
+                                setEditingTeacher(teacher);
+                                setFormTeacherName(teacher.name);
+                                setFormTeacherSubject(teacher.subject);
+                                setTeacherSuccess("");
+                                setTeacherError("");
+                              }}
+                              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-moroccan-gold border border-amber-250/40 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>تعديل</span>
+                            </button>
+
+                            <button
+                              id={`delete-teacher-${teacher.id}`}
+                              onClick={() => handleDeleteTeacher(teacher.id)}
+                              disabled={deletingTeacherId === teacher.id}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition duration-200 cursor-pointer border ${
+                                confirmDeleteTeacherId === teacher.id 
+                                  ? "bg-red-600 text-white border-red-700 animate-pulse font-bold" 
+                                  : "bg-red-50 hover:bg-red-100 text-red-650 border-red-205/10"
+                              }`}
+                            >
+                              {deletingTeacherId === teacher.id ? (
+                                <span>جاري...</span>
+                              ) : confirmDeleteTeacherId === teacher.id ? (
+                                <span>تأكيد؟ ⚠️</span>
+                              ) : (
+                                <span>حذف</span>
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  {adminTeachers.filter(t => {
+                    const searchMatch = t.name.toLowerCase().includes(adminTeacherSearch.trim().toLowerCase());
+                    const subjectMatch = adminTeacherFilterSubject === "all" || t.subject === adminTeacherFilterSubject;
+                    return searchMatch && subjectMatch;
+                  }).length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-10 text-center text-slate-400 italic">
+                        لا يوجد أساتذة مضافين متوافقين مع خيارات البحث والتصفية.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
+          </div>
+        )}
 
-            <p className="text-xs text-slate-500 leading-relaxed font-sans">
-              تصفح وقص الأساتذة من دليل اللوحة الإشهارية بالصفحة الرئيسية. انقر للتهيئة، ثم انقر مجدداً للشطب النهائي.
-            </p>
+        {/* ADD TEACHER MODAL OVERLAY */}
+        <AnimatePresence>
+          {isAddTeacherOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="bg-white rounded-2xl border border-amber-200/50 shadow-xl max-w-md w-full p-6 space-y-4 text-right"
+                dir="rtl"
+              >
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <PlusCircle className="h-5 w-5 text-royal-blue" />
+                  <h6 className="font-bold text-base text-slate-900 font-serif">إضافة أستاذ جديد للهيئة</h6>
+                </div>
 
-            {loadingTeachers ? (
-              <div className="text-center py-6 animate-pulse">
-                <span className="text-xs text-slate-400">تحميل الأساتذة المعروضين...</span>
-              </div>
-            ) : adminTeachers.length === 0 ? (
-              <div className="bg-slate-50/60 p-8 rounded-lg text-center border border-dashed border-slate-200 min-h-[150px] flex items-center justify-center animate-pulse">
-                <span className="text-xs text-slate-400">لا يوجد أي أستاذ بالواجهة حالياً لعرضه.</span>
-              </div>
-            ) : (
-              <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
-                {adminTeachers.map((teacher) => (
-                  <div
-                    key={teacher.id}
-                    className="text-right p-3 bg-slate-50/80 rounded-lg border border-slate-200 flex items-start justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-800">{teacher.name}</span>
-                        <span className="text-[9px] text-royal-blue bg-blue-50 border border-blue-100 px-1.5 py-0.2 rounded font-sans">{teacher.subject}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed max-w-sm">
-                        {teacher.desc}
-                      </p>
-                    </div>
+                <form onSubmit={handlePostTeacher} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">اسم الأستاذ الكامل:</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: ذ. عبد الله المنصوري"
+                      value={formTeacherName}
+                      onChange={(e) => setFormTeacherName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-royal-blue bg-slate-50 focus:bg-white transition"
+                    />
+                  </div>
 
-                    <button
-                      id={`delete-teacher-${teacher.id}`}
-                      onClick={() => handleDeleteTeacher(teacher.id)}
-                      disabled={deletingTeacherId === teacher.id}
-                      className={`p-1 px-2.5 rounded text-xs transition duration-200 cursor-pointer self-center shrink-0 border ${
-                        confirmDeleteTeacherId === teacher.id 
-                          ? "bg-red-650 text-white border-red-700 animate-pulse font-bold text-[9px] py-1 animate-pulse" 
-                          : "text-slate-400 hover:text-red-650 hover:bg-red-50 border-transparent hover:border-red-100"
-                      }`}
-                      title={confirmDeleteTeacherId === teacher.id ? "تأكيد حذف الأستاذ" : "شطب الأستاذ"}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">المادة والتخصص البيداغوجي:</label>
+                    <select
+                      value={formTeacherSubject}
+                      onChange={(e) => setFormTeacherSubject(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs outline-none bg-white focus:border-royal-blue font-bold cursor-pointer"
                     >
-                      {deletingTeacherId === teacher.id ? (
-                        <span className="text-[9px]">جاري...</span>
-                      ) : confirmDeleteTeacherId === teacher.id ? (
-                        "تأكيد؟ ⚠️"
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
+                      {['الرياضيات', 'علوم الحياة والأرض', 'الفيزياء', 'العربية', 'الفرنسية', 'الإنجليزية', 'التربية الإسلامية', 'التكنولوجيا', 'المعلوميات', 'الاجتماعيات', 'الرياضة'].map((sub) => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddTeacherOpen(false)}
+                      className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      إلغاء التراجع
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingTeacher}
+                      className="px-4 py-2 bg-royal-blue hover:bg-royal-hover text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                    >
+                      {submittingTeacher ? "جاري الإدخال..." : "إدارج وتسجيل"}
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-      </div>
+        {/* EDIT TEACHER MODAL OVERLAY */}
+        <AnimatePresence>
+          {editingTeacher && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="bg-white rounded-2xl border border-amber-200/50 shadow-xl max-w-md w-full p-6 space-y-4 text-right"
+                dir="rtl"
+              >
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <GraduationCap className="h-5 w-5 text-moroccan-gold" />
+                  <h6 className="font-bold text-base text-slate-900 font-serif">تحديث بيانات الأستاذ</h6>
+                </div>
+
+                <form onSubmit={handleUpdateTeacher} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">اسم الأستاذ الكامل:</label>
+                    <input
+                      type="text"
+                      value={formTeacherName}
+                      onChange={(e) => setFormTeacherName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-royal-blue bg-slate-50 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">المادة والتخصص البيداغوجي:</label>
+                    <select
+                      value={formTeacherSubject}
+                      onChange={(e) => setFormTeacherSubject(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs outline-none bg-white focus:border-royal-blue font-bold cursor-pointer"
+                    >
+                      {['الرياضيات', 'علوم الحياة والأرض', 'الفيزياء', 'العربية', 'الفرنسية', 'الإنجليزية', 'التربية الإسلامية', 'التكنولوجيا', 'المعلوميات', 'الاجتماعيات', 'الرياضة'].map((sub) => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTeacher(null)}
+                      className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      إلغاء التراجع
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingTeacher}
+                      className="px-4 py-2 bg-royal-blue hover:bg-royal-hover text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                    >
+                      {submittingTeacher ? "جاري الحفظ..." : "حفظ التعديلات"}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </section>
 
     </div>
   );

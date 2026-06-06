@@ -321,17 +321,22 @@ export async function getTeachers(): Promise<TeacherItem[]> {
   try {
     const { data, error } = await supabase
       .from("school_teachers")
-      .select("*")
+      .select("id, name, specialty")
       .order("id", { ascending: true });
     if (error) throw error;
-    return data as TeacherItem[];
+    return (data || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      subject: item.specialty || "",
+      desc: ""
+    })) as TeacherItem[];
   } catch (err) {
     console.error("Error getting teachers:", err);
     return defaultTeachers;
   }
 }
 
-export async function addTeacher(name: string, subject: string, desc: string): Promise<boolean> {
+export async function addTeacher(name: string, subject: string, desc: string = ""): Promise<boolean> {
   if (!supabase) {
     initLocalStorage();
     try {
@@ -339,7 +344,7 @@ export async function addTeacher(name: string, subject: string, desc: string): P
       const nextId = current.length > 0 ? Math.max(...current.map(t => t.id)) + 1 : 1;
       const updated = [
         ...current,
-        { id: nextId, name: name.trim(), subject: subject.trim(), desc: desc.trim() }
+        { id: nextId, name: name.trim(), subject: subject.trim(), desc }
       ];
       localStorage.setItem("school_teachers", JSON.stringify(updated));
       notifyUpdate();
@@ -352,12 +357,40 @@ export async function addTeacher(name: string, subject: string, desc: string): P
   try {
     const { error } = await supabase
       .from("school_teachers")
-      .insert({ name: name.trim(), subject: subject.trim(), desc: desc.trim() });
+      .insert({ name: name.trim(), specialty: subject.trim() });
     if (error) throw error;
     notifyUpdate();
     return true;
   } catch (err) {
     console.error("Error adding teacher:", err);
+    return false;
+  }
+}
+
+export async function updateTeacher(id: number, name: string, subject: string): Promise<boolean> {
+  if (!supabase) {
+    initLocalStorage();
+    try {
+      const current = await getTeachers();
+      const updated = current.map((t) => t.id === id ? { ...t, name: name.trim(), subject: subject.trim() } : t);
+      localStorage.setItem("school_teachers", JSON.stringify(updated));
+      notifyUpdate();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const { error } = await supabase
+      .from("school_teachers")
+      .update({ name: name.trim(), specialty: subject.trim() })
+      .eq("id", id);
+    if (error) throw error;
+    notifyUpdate();
+    return true;
+  } catch (err) {
+    console.error("Error updating teacher:", err);
     return false;
   }
 }

@@ -14,7 +14,9 @@ import {
   BookmarkCheck,
   Megaphone,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -24,9 +26,10 @@ import {
   deleteNotification, 
   setTicker, 
   isCloudSyncEnabled,
-  SchoolSubject 
+  SchoolSubject,
+  getTeachers
 } from "../lib/supabaseClient";
-import { NotificationItem } from "../types";
+import { NotificationItem, TeacherItem } from "../types";
 
 export default function StaffSection() {
   // Authentication state
@@ -41,6 +44,12 @@ export default function StaffSection() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<SchoolSubject | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Teachers directory state
+  const [teachers, setTeachers] = useState<TeacherItem[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState<boolean>(true);
+  const [teachersSearch, setTeachersSearch] = useState<string>("");
+  const [staffSubTab, setStaffSubTab] = useState<"directory" | "login">("directory");
 
   // New notification form state
   const [newTitle, setNewTitle] = useState<string>("");
@@ -79,7 +88,20 @@ export default function StaffSection() {
     }
   };
 
+  const loadTeachersList = async () => {
+    setLoadingTeachers(true);
+    try {
+      const data = await getTeachers();
+      setTeachers(data);
+    } catch (err) {
+      console.error("Error loading teachers list:", err);
+    } finally {
+      setLoadingTeachers(false);
+    }
+  };
+
   useEffect(() => {
+    loadTeachersList();
     if (isAuthenticated) {
       loadPortalData();
     }
@@ -140,58 +162,200 @@ export default function StaffSection() {
     n => n.subject && n.subject.toLowerCase() === selectedSubject?.name.toLowerCase()
   );
 
+  // Grouping teachers for the public directory tab
+  const groupedTeachers: Record<string, TeacherItem[]> = {};
+  
+  // Filter by name or specialty search input
+  const searchedTeachers = teachers.filter(t => {
+    const term = teachersSearch.trim().toLowerCase();
+    if (!term) return true;
+    return t.name.toLowerCase().includes(term) || (t.subject && t.subject.toLowerCase().includes(term));
+  });
+
+  searchedTeachers.forEach(t => {
+    const spec = t.subject || "مواد أخرى";
+    if (!groupedTeachers[spec]) {
+      groupedTeachers[spec] = [];
+    }
+    groupedTeachers[spec].push(t);
+  });
+
+  // Get active sorted list of specialties present
+  const activeSpecialties = Object.keys(groupedTeachers).sort((a, b) => {
+    const approved = ['الرياضيات', 'الفيزياء', 'الفرنسية', 'العربية', 'علوم الحياة والأرض', 'الإنجليزية', 'التربية الإسلامية', 'التكنولوجيا', 'المعلوميات', 'الاجتماعيات', 'الرياضة'];
+    const idxA = approved.indexOf(a);
+    const idxB = approved.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div id="staff-portal-workspace" className="space-y-6 max-w-5xl mx-auto" dir="rtl">
       
       {!isAuthenticated ? (
-        /* Login Form */
-        <div className="max-w-md mx-auto bg-white rounded-2xl border border-amber-200/55 p-6 sm:p-8 shadow-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 left-0 h-1.5 bg-moroccan-gold"></div>
-          
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-14 h-14 bg-royal-blue/15 rounded-full flex items-center justify-center text-royal-blue">
-              <Lock className="h-7 w-7" />
-            </div>
-            
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold font-serif text-royal-blue">فضاء الأطر التربوية والتدريس</h3>
-              <p className="text-xs text-slate-500">
-                بوابة مغلقة ومحمية مخصصة لأساتذة الثانوية الإعدادية للا أسماء لنشر الدروس وتوجيهات الامتحان.
-              </p>
-            </div>
+        <div className="space-y-6">
+          {/* Sub Tab Switcher Controls */}
+          <div className="flex items-center justify-center gap-4 max-w-md mx-auto p-1.5 bg-slate-100 rounded-xl border border-slate-200/50">
+            <button
+              onClick={() => setStaffSubTab("directory")}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                staffSubTab === "directory"
+                  ? "bg-white text-royal-blue shadow-xs border border-slate-200/40"
+                  : "text-slate-600 hover:text-royal-blue"
+              }`}
+            >
+              <Users className="h-3.5 w-3.5 text-moroccan-gold" />
+              <span>دليل أساتذة المؤسسة</span>
+            </button>
+            <button
+              onClick={() => setStaffSubTab("login")}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                staffSubTab === "login"
+                  ? "bg-white text-royal-blue shadow-xs border border-slate-200/40"
+                  : "text-slate-600 hover:text-royal-blue"
+              }`}
+            >
+              <Lock className="h-3.5 w-3.5 text-royal-blue" />
+              <span>بوابة نشر الأستاذ</span>
+            </button>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4 mt-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">كلمة مرور الأستاذ المقررة:</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="أدخل الرمز السري للأستاذ..."
-                  required
-                  className="w-full text-center px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-royal-blue rounded-xl text-sm transition outline-none"
-                />
-                <KeyRound className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
-              </div>
-            </div>
+          <AnimatePresence mode="wait">
+            {staffSubTab === "directory" ? (
+              <motion.div
+                key="directory-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-6"
+              >
+                {/* Search & Header Section */}
+                <div className="text-center space-y-2 max-w-xl mx-auto">
+                  <h3 className="text-xl font-bold text-royal-blue font-serif">دليل هيئة التدريس بالثانوية</h3>
+                  <p className="text-xs text-slate-500">
+                    قائمة تواصل بيداغوجية تعرض كافة الأطر والأساتذة مصنفين تفاعلياً حسب مادة التدريس وتخصصاتهم.
+                  </p>
+                  
+                  {/* Search bar */}
+                  <div className="pt-2 relative max-w-md mx-auto">
+                    <input
+                      type="text"
+                      value={teachersSearch}
+                      onChange={(e) => setTeachersSearch(e.target.value)}
+                      placeholder="ابحث عن أستاذ بالاسم أو تخصص المادة..."
+                      className="w-full pl-3 pr-10 py-2 bg-white border border-slate-250 rounded-xl text-xs focus:outline-none focus:border-royal-blue shadow-xs text-right"
+                    />
+                    <Search className="absolute right-3 top-4 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
 
-            {authError && (
-              <div className="p-3 bg-red-50 text-red-700 border border-red-100 rounded-xl text-xs flex items-center gap-2 font-medium">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{authError}</span>
-              </div>
+                {loadingTeachers ? (
+                  <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3">
+                    <RefreshCw className="h-6 w-6 text-moroccan-gold animate-spin" />
+                    <span className="text-xs text-slate-400">جاري تحميل لائحة الأطر السحابية...</span>
+                  </div>
+                ) : activeSpecialties.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200">
+                    <span className="text-xs text-slate-400">لا يوجد أي أساتذة مطابقين لخيارات البحث.</span>
+                  </div>
+                ) : (
+                  /* Organized specialties grid */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {activeSpecialties.map((specialty) => {
+                      const list = groupedTeachers[specialty];
+                      return (
+                        <div 
+                          key={specialty}
+                          className="bg-white rounded-xl border border-amber-200/30 p-5 shadow-xs hover:border-moroccan-gold/60 transition-colors duration-200 flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between border-b border-dashed border-slate-100 pb-2.5 mb-3.5">
+                              <span className="font-bold text-sm text-royal-blue font-serif">مادة {specialty}</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 rounded text-moroccan-gold border border-amber-100/50">
+                                {list.length} {list.length === 1 ? "أستاذ" : "أساتذة"}
+                              </span>
+                            </div>
+
+                            <ul className="space-y-2.5">
+                              {list.map((teacher) => (
+                                <li 
+                                  key={teacher.id}
+                                  className="flex items-center gap-2.5 text-xs text-slate-700 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 font-medium hover:bg-slate-50 transition-colors"
+                                >
+                                  <GraduationCap className="h-4.5 w-4.5 text-moroccan-gold mt-0.5" />
+                                  <span>{teacher.name}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              /* Login Form */
+              <motion.div
+                key="login-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="max-w-md mx-auto bg-white rounded-2xl border border-amber-200/55 p-6 sm:p-8 shadow-md relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 left-0 h-1.5 bg-moroccan-gold"></div>
+                
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-14 h-14 bg-royal-blue/15 rounded-full flex items-center justify-center text-royal-blue">
+                    <Lock className="h-7 w-7" />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-bold font-serif text-royal-blue">فضاء الأطر التربوية والتدريس</h3>
+                    <p className="text-xs text-slate-500">
+                      بوابة مغلقة ومحمية مخصصة لأساتذة الثانوية الإعدادية للا أسماء لنشر الدروس وتوجيهات الامتحان.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-4 mt-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 font-sans">كلمة مرور الأستاذ المقررة:</label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="أدخل الرمز السري للأستاذ..."
+                        required
+                        className="w-full text-center px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-royal-blue rounded-xl text-xs sm:text-sm transition outline-none"
+                      />
+                      <KeyRound className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <div className="p-3 bg-red-50 text-red-700 border border-red-100 rounded-xl text-xs flex items-center gap-2 font-medium">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-royal-blue hover:bg-royal-hover text-white rounded-xl shadow font-bold text-sm tracking-wide transition cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>تسجيل الدخول الآمن</span>
+                    <ArrowRight className="h-4 w-4 text-moroccan-gold" />
+                  </button>
+                </form>
+              </motion.div>
             )}
-
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-royal-blue hover:bg-royal-hover text-white rounded-xl shadow font-bold text-sm tracking-wide transition cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>تسجيل الدخول الآمن</span>
-              <ArrowRight className="h-4 w-4 text-moroccan-gold" />
-            </button>
-          </form>
+          </AnimatePresence>
         </div>
       ) : (
         /* Workspace */
