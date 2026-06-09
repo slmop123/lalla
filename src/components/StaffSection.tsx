@@ -60,7 +60,7 @@ export default function StaffSection() {
   const [formSuccess, setFormSuccess] = useState<string>("");
   const [formError, setFormError] = useState<string>("");
 
-  const DEFAULT_STAFF_PASSWORD = "lalla_asmaa_teacher";
+  const DEFAULT_STAFF_PASSWORD = "lalla@asmaa321";
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
